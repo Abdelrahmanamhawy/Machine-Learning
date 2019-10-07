@@ -1,0 +1,184 @@
+//Detecing class imbalances using confusion matrix for a kaggle competetion . Competetion name:Costa Rican household poverty.
+
+​
+import numpy as np # linear algebra
+import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+from pandas.plotting import scatter_matrix
+from sklearn.preprocessing import Imputer
+from sklearn.preprocessing import LabelBinarizer
+from sklearn.preprocessing import LabelEncoder
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn import linear_model
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_predict
+from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
+from sklearn.model_selection import GridSearchCV
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import roc_curve
+​
+# Input data files are available in the "../input/" directory.
+# For example, running this (by clicking run or pressing Shift+Enter) will list all files under the input directory
+​
+import os
+for dirname, _, filenames in os.walk('/kaggle/input'):
+    for filename in filenames:
+        print(os.path.join(dirname, filename))
+​
+# Any results you write to the current directory are saved as output.
+
+
+
+
+
+#....The steps for preproccessing data .....#
+#1-Data visualization.
+#2-Data correletion.
+#3-Data cleaning(Filling missing values)
+#4-Handling cateogiral data
+#5-Feautre scaling
+​
+​
+​
+train=pd.read_csv("../input/costa-rican-household-poverty-prediction/train.csv")
+train_numerical=train.drop(columns=["Id","idhogar","dependency","edjefe","edjefa"])
+​
+
+
+
+
+
+#Handling Cateogiral data.
+num=LabelBinarizer()
+train["Id"]=num.fit_transform(train["Id"])
+train["idhogar"]=num.fit_transform(train["idhogar"])
+train["dependency"]=num.fit_transform(train["dependency"])
+train["edjefe"]=num.fit_transform(train["edjefe"])
+train["edjefa"]=num.fit_transform(train["edjefa"])
+​
+​
+
+
+
+
+
+ 
+​
+#train.select_dtypes(exclude=["number","bool_","object_"])
+#Handling Missing values 
+​
+train.fillna(train.mean(), inplace=True)
+​
+dependt_=train["Target"]
+Independt_= train.drop(columns="Target")
+​
+​
+​
+​
+​
+
+
+
+
+
+ 
+​
+train.isna()
+
+
+
+
+
+train.plot(kind="scatter",x="v2a1",y="rooms")
+​
+#As we can see there is a correleation (Upward trend)
+
+
+
+
+
+#train=train.drop(columns="Target")
+corr_matrix=train.corr(method="pearson")
+print(corr_matrix)
+#scatter_matrix(Independt_,figsize=(12,8))
+#scatter_matrix(corr_matrix, alpha=0.2, figsize=(10, 10))
+#corr_matrix=dependt_.corr(Independt_,method="pearson")
+
+
+
+
+
+#train=train.drop(index=((pred==0)&(dependt_==3)))
+#X_bb=train[(pred==1)& (dependt_==3)]
+
+
+
+
+
+clf=Pipeline([
+    ('std_scaler',StandardScaler()),
+    ('forest',RandomForestClassifier(n_estimators=1000, max_depth=8,random_state=0,max_features=2))
+      
+])
+​
+clf.fit(Independt_,dependt_)
+
+
+
+
+
+params_grid=[
+    { 'forest__n_estimators':[100,500,1000],
+      'forest__max_features':[2,4,8] 
+      
+    } 
+    
+]
+​
+grid_search=GridSearchCV(clf,params_grid,cv=5)
+grid_search.fit(Independt_,dependt_)
+
+
+
+
+
+print(grid_search.best_params_)
+
+
+
+
+
+scores=cross_val_score(clf,Independt_,dependt_,scoring="accuracy",cv=10)
+print(scores)
+
+
+
+
+
+pred=cross_val_predict(clf,Independt_,dependt_,cv=3)
+conf_=confusion_matrix(dependt_,pred)
+​
+row_sums=conf_.sum(axis=1,keepdims=True)
+norm_conf=conf_/row_sums
+np.fill_diagonal(norm_conf,0)
+plt.matshow(norm_conf,cmap=plt.cm.gray)
+plt.show()
+
+
+
+
+
+It seems from the confusion matrix that class=3 is often misclassifed and classifed as the other classes.
+
+
+
+
+
+
+X_aa=train[(pred==0) &(dependt_==3)]
+X_bb=train[(pred==1)& (dependt_==3)]
+X_cc=train[(pred==2)& (dependt_==3)]
+​
+​
+print(X_cc.head)
